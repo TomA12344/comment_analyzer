@@ -8,17 +8,23 @@ class SentimentAnalyzer:
     Class for performing sentiment analysis on German text using pre-trained models.
     """
     
-    def __init__(self, model_name="oliverguhr/german-sentiment-bert"):
+    def __init__(self, model_name="ssary/XLM-RoBERTa-German-sentiment"):
         """
         Initialize the sentiment analyzer with a pre-trained model.
         
         Args:
             model_name (str): Name of the pre-trained model to use
+                Default is "ssary/XLM-RoBERTa-German-sentiment" which is optimized for German sentiment analysis
         """
         self.model_name = model_name
         self.tokenizer = None
         self.model = None
         self.labels = ["negative", "neutral", "positive"]
+            
+        # Konfidenz-Schwellenwerte für bessere Klassifizierung
+        self.confidence_thresholds = {
+            "neutral_to_sentiment": 0.6  # Wenn Score > 0.6, klassifiziere als positiv/negativ statt neutral
+        }
     
     def load_model(self):
         """
@@ -43,7 +49,7 @@ class SentimentAnalyzer:
         
         # Handle empty or non-string input
         if not isinstance(text, str) or not text:
-            return {"sentiment": "neutral", "scores": {"negative": 0.0, "neutral": 1.0, "positive": 0.0}}
+            return {"sentiment": "neutral", "scores": {label: (1.0 if label == "neutral" else 0.0) for label in self.labels}}
         
         # Tokenize and get model input
         inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
@@ -54,8 +60,19 @@ class SentimentAnalyzer:
             scores = torch.nn.functional.softmax(outputs.logits, dim=1)
             scores_dict = {label: float(score) for label, score in zip(self.labels, scores[0])}
         
-        # Determine sentiment
-        sentiment = self.labels[scores.argmax().item()]
+        # Verbesserte Sentiment-Bestimmung mit Konfidenz-Schwellenwerten
+        max_label = max(scores_dict, key=scores_dict.get)
+        max_score = scores_dict[max_label]
+        
+        # Wenn als neutral klassifiziert, aber Konfidenzscore zu niedrig, 
+        # wähle stattdessen positiv oder negativ basierend auf den relativen Scores
+        if max_label == "neutral" and max_score < self.confidence_thresholds["neutral_to_sentiment"]:
+            if scores_dict["positive"] > scores_dict["negative"]:
+                sentiment = "positive"
+            else:
+                sentiment = "negative"
+        else:
+            sentiment = max_label
         
         return {
             "sentiment": sentiment,

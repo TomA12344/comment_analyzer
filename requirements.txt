@@ -6,8 +6,10 @@ numpy>=1.20.0
 nltk>=3.6.0
 
 # Sentiment analysis
-torch>=1.10.0
-transformers>=4.15.0
+torch>=2.0.0
+transformers>=4.30.0
+sentencepiece>=0.1.99  # Erforderlich für XLM-RoBERTa
+protobuf>=3.20.0  # Erforderlich für neuere Transformers Versionen
 
 # Topic modeling
 scikit-learn>=1.0.0
