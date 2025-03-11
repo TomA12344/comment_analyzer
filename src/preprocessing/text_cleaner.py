@@ -3,12 +3,18 @@ import unicodedata
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
+from ..config import DEFAULT_LANGUAGE, TEXT_CLEANING
+from ..logger import setup_logger
+
+# Logger für dieses Modul
+logger = setup_logger(__name__)
 
 # Download necessary NLTK resources
 try:
     nltk.data.find('tokenizers/punkt')
     nltk.data.find('corpora/stopwords')
 except LookupError:
+    logger.info("Lade erforderliche NLTK-Ressourcen...")
     nltk.download('punkt')
     nltk.download('stopwords')
 
@@ -18,20 +24,29 @@ class TextCleaner:
     Class for cleaning and preprocessing text data for analysis.
     """
     
-    def __init__(self, language='german'):
+    def __init__(self, language=None):
         """
         Initialize text cleaner with specified language.
         
         Args:
-            language (str): Language for stopwords and tokenization (default: 'german')
+            language (str): Language for stopwords and tokenization (default from config)
         """
-        self.language = language
+        self.language = language or DEFAULT_LANGUAGE
+        self.cleaning_config = TEXT_CLEANING
+        
         # Load stop words for the selected language
         try:
-            self.stop_words = set(stopwords.words(language))
+            self.stop_words = set(stopwords.words(self.language))
+            logger.info(f"TextCleaner initialisiert mit Sprache: {self.language}")
+            logger.debug(f"{len(self.stop_words)} Stopwörter geladen")
         except LookupError:
+            logger.warning(f"Stopwörter für {self.language} nicht gefunden. Lade NLTK-Ressourcen...")
             nltk.download('stopwords')
-            self.stop_words = set(stopwords.words(language))
+            self.stop_words = set(stopwords.words(self.language))
+        except ValueError as e:
+            logger.error(f"Fehler beim Laden der Stopwörter für Sprache {self.language}: {str(e)}")
+            logger.info("Fallback auf englische Stopwörter")
+            self.stop_words = set(stopwords.words('english'))
         
     def clean_text(self, text):
         """
@@ -44,20 +59,28 @@ class TextCleaner:
             str: Cleaned text
         """
         if not isinstance(text, str) or not text:
+            logger.warning("Leerer oder ungültiger Text für die Textbereinigung")
             return ""
         
-        # Convert to lowercase
-        text = text.lower()
+        # Convert to lowercase if configured
+        if self.cleaning_config["lowercase"]:
+            text = text.lower()
         
-        # Remove URLs
-        text = re.sub(r'https?://\S+|www\.\S+', '', text)
+        # Remove URLs if configured
+        if self.cleaning_config["remove_urls"]:
+            text = re.sub(r'https?://\S+|www\.\S+', '', text)
         
-        # Remove email addresses
-        text = re.sub(r'\S+@\S+', '', text)
+        # Remove email addresses if configured
+        if self.cleaning_config["remove_emails"]:
+            text = re.sub(r'\S+@\S+', '', text)
         
-        # Remove special characters and numbers
-        text = re.sub(r'[^\w\s]', '', text)
-        text = re.sub(r'\d+', '', text)
+        # Remove special characters if configured
+        if self.cleaning_config["remove_special_chars"]:
+            text = re.sub(r'[^\w\s]', '', text)
+        
+        # Remove numbers if configured
+        if self.cleaning_config["remove_numbers"]:
+            text = re.sub(r'\d+', '', text)
         
         # Normalize unicode characters
         text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8', 'ignore')
@@ -65,11 +88,12 @@ class TextCleaner:
         # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text).strip()
         
+        logger.debug(f"Text gereinigt: '{text[:30]}...'")
         return text
     
     def tokenize(self, text):
         """
-        Tokenize text into words using a simple split approach instead of nltk's word_tokenize.
+        Tokenize text into words using a simple split approach.
         
         Args:
             text (str): Text to tokenize
@@ -79,6 +103,7 @@ class TextCleaner:
         """
         # Simple tokenization by splitting on whitespace
         if not text:
+            logger.debug("Versuch, leeren Text zu tokenisieren")
             return []
         return text.split()
     
@@ -92,7 +117,9 @@ class TextCleaner:
         Returns:
             list: List of tokens with stopwords removed
         """
-        return [word for word in tokens if word not in self.stop_words]
+        filtered_tokens = [word for word in tokens if word not in self.stop_words]
+        logger.debug(f"Stopwörter entfernt: {len(tokens) - len(filtered_tokens)} von {len(tokens)} Tokens entfernt")
+        return filtered_tokens
     
     def preprocess(self, text):
         """
@@ -136,8 +163,11 @@ class TextCleaner:
             pandas.DataFrame: DataFrame with added columns for cleaned text and tokens
         """
         if text_column not in df.columns:
+            logger.error(f"Spalte '{text_column}' nicht in DataFrame gefunden")
             raise ValueError(f"Column '{text_column}' not found in DataFrame")
             
+        logger.info(f"Vorverarbeitung von {len(df)} Texten in DataFrame")
+        
         # Make a copy to avoid modifying the original dataframe
         result_df = df.copy()
         
@@ -148,4 +178,5 @@ class TextCleaner:
         result_df['cleaned_text'] = processed_data.apply(lambda x: x[0])
         result_df['tokens'] = processed_data.apply(lambda x: x[1])
         
+        logger.info("Textvorverarbeitung abgeschlossen")
         return result_df

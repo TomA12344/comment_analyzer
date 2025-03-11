@@ -2,6 +2,11 @@ import os
 import sqlite3
 import pandas as pd
 from pathlib import Path
+from ..config import DB_PATH
+from ..logger import setup_logger
+
+# Logger für dieses Modul
+logger = setup_logger(__name__)
 
 class CommentDatabase:
     """
@@ -13,48 +18,57 @@ class CommentDatabase:
         Initialize the database connection.
         
         Args:
-            db_path (str): Path to the SQLite database file. If None, uses default path.
+            db_path (str): Path to the SQLite database file. If None, uses default path from config.
         """
-        if db_path is None:
-            # Default path is in the data directory
-            base_dir = Path(__file__).parent.parent.parent
-            db_path = os.path.join(base_dir, 'data', 'comments.db')
-            
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        self.db_path = db_path or DB_PATH
         
-        self.db_path = db_path
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        
         self.connection = None
+        logger.info(f"Datenbankverbindung initialisiert: {self.db_path}")
         
     def connect(self):
         """Establish connection to the database."""
-        self.connection = sqlite3.connect(self.db_path)
-        return self.connection
+        try:
+            self.connection = sqlite3.connect(self.db_path)
+            logger.debug("Datenbankverbindung hergestellt")
+            return self.connection
+        except sqlite3.Error as e:
+            logger.error(f"Fehler beim Verbinden zur Datenbank: {str(e)}")
+            raise
     
     def close(self):
         """Close the database connection."""
         if self.connection:
             self.connection.close()
             self.connection = None
+            logger.debug("Datenbankverbindung geschlossen")
     
     def create_tables(self):
         """Create necessary tables if they don't exist."""
         conn = self.connect()
         cursor = conn.cursor()
         
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS comments (
-            id INTEGER PRIMARY KEY,
-            text TEXT NOT NULL,
-            author TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            source TEXT,
-            category TEXT
-        )
-        ''')
-        
-        conn.commit()
-        self.close()
+        try:
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS comments (
+                id INTEGER PRIMARY KEY,
+                text TEXT NOT NULL,
+                author TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                source TEXT,
+                category TEXT
+            )
+            ''')
+            
+            conn.commit()
+            logger.info("Tabellen erfolgreich erstellt oder waren bereits vorhanden")
+        except sqlite3.Error as e:
+            logger.error(f"Fehler beim Erstellen der Tabellen: {str(e)}")
+            raise
+        finally:
+            self.close()
         
     def insert_comment(self, text, author=None, source=None, category=None):
         """
@@ -72,16 +86,22 @@ class CommentDatabase:
         conn = self.connect()
         cursor = conn.cursor()
         
-        cursor.execute(
-            "INSERT INTO comments (text, author, source, category) VALUES (?, ?, ?, ?)",
-            (text, author, source, category)
-        )
-        
-        comment_id = cursor.lastrowid
-        conn.commit()
-        self.close()
-        
-        return comment_id
+        try:
+            cursor.execute(
+                "INSERT INTO comments (text, author, source, category) VALUES (?, ?, ?, ?)",
+                (text, author, source, category)
+            )
+            
+            comment_id = cursor.lastrowid
+            conn.commit()
+            logger.debug(f"Kommentar eingefügt mit ID {comment_id}")
+            return comment_id
+        except sqlite3.Error as e:
+            logger.error(f"Fehler beim Einfügen eines Kommentars: {str(e)}")
+            conn.rollback()
+            raise
+        finally:
+            self.close()
     
     def insert_many_comments(self, comments_data):
         """
@@ -96,16 +116,22 @@ class CommentDatabase:
         conn = self.connect()
         cursor = conn.cursor()
         
-        cursor.executemany(
-            "INSERT INTO comments (text, author, source, category) VALUES (?, ?, ?, ?)",
-            comments_data
-        )
-        
-        count = cursor.rowcount
-        conn.commit()
-        self.close()
-        
-        return count
+        try:
+            cursor.executemany(
+                "INSERT INTO comments (text, author, source, category) VALUES (?, ?, ?, ?)",
+                comments_data
+            )
+            
+            count = cursor.rowcount
+            conn.commit()
+            logger.info(f"{count} Kommentare erfolgreich eingefügt")
+            return count
+        except sqlite3.Error as e:
+            logger.error(f"Fehler beim Einfügen mehrerer Kommentare: {str(e)}")
+            conn.rollback()
+            raise
+        finally:
+            self.close()
     
     def get_all_comments(self):
         """
@@ -116,11 +142,16 @@ class CommentDatabase:
         """
         conn = self.connect()
         
-        query = "SELECT * FROM comments"
-        df = pd.read_sql_query(query, conn)
-        
-        self.close()
-        return df
+        try:
+            query = "SELECT * FROM comments"
+            df = pd.read_sql_query(query, conn)
+            logger.info(f"{len(df)} Kommentare aus der Datenbank abgerufen")
+            return df
+        except (sqlite3.Error, pd.io.sql.DatabaseError) as e:
+            logger.error(f"Fehler beim Abrufen aller Kommentare: {str(e)}")
+            raise
+        finally:
+            self.close()
     
     def get_comments_by_category(self, category):
         """
@@ -134,11 +165,16 @@ class CommentDatabase:
         """
         conn = self.connect()
         
-        query = "SELECT * FROM comments WHERE category = ?"
-        df = pd.read_sql_query(query, conn, params=(category,))
-        
-        self.close()
-        return df
+        try:
+            query = "SELECT * FROM comments WHERE category = ?"
+            df = pd.read_sql_query(query, conn, params=(category,))
+            logger.info(f"{len(df)} Kommentare für Kategorie '{category}' gefunden")
+            return df
+        except (sqlite3.Error, pd.io.sql.DatabaseError) as e:
+            logger.error(f"Fehler beim Abrufen von Kommentaren nach Kategorie: {str(e)}")
+            raise
+        finally:
+            self.close()
 
     def search_comments(self, search_term):
         """
@@ -152,49 +188,53 @@ class CommentDatabase:
         """
         conn = self.connect()
         
-        query = "SELECT * FROM comments WHERE text LIKE ?"
-        df = pd.read_sql_query(query, conn, params=(f'%{search_term}%',))
-        
-        self.close()
-        return df
+        try:
+            query = "SELECT * FROM comments WHERE text LIKE ?"
+            df = pd.read_sql_query(query, conn, params=(f'%{search_term}%',))
+            logger.info(f"{len(df)} Kommentare gefunden, die '{search_term}' enthalten")
+            return df
+        except (sqlite3.Error, pd.io.sql.DatabaseError) as e:
+            logger.error(f"Fehler bei der Suche nach Kommentaren: {str(e)}")
+            raise
+        finally:
+            self.close()
 
 
 def initialize_database_with_sample_data():
     """
     Initialize the database with sample German comments for testing.
     """
+    logger.info("Initialisiere Datenbank mit Beispieldaten")
+    
     db = CommentDatabase()
     db.create_tables()
     
     # Sample German comments for different categories
+    # Hier folgt eine gekürzte Version der Beispieldaten
     sample_comments = [
-        # Positive comments about products
-        ("Das Produkt hat alle meine Erwartungen übertroffen. Sehr zufrieden!", "Max Mustermann", "Amazon", "Produkt"),
-        ("Die Qualität ist hervorragend und der Preis ist angemessen.", "Lisa Schmidt", "Online-Shop", "Produkt"),
-        ("Schnelle Lieferung und einwandfreie Ware. Gerne wieder!", "Thomas Müller", "eBay", "Produkt"),
+        # Einige positive Kommentare
+        ("Das Produkt hat meine Erwartungen übertroffen.", "Max M.", "Amazon", "Produkt"),
+        ("Die Qualität ist hervorragend.", "Lisa S.", "Online-Shop", "Produkt"),
         
-        # Negative comments about products
-        ("Leider entspricht die Qualität nicht dem Preis. Bin enttäuscht.", "Anna Weber", "Amazon", "Produkt"),
-        ("Nach nur einer Woche ist das Gerät kaputt gegangen. Nicht zu empfehlen.", "Michael Bauer", "Elektronikmarkt", "Produkt"),
+        # Einige negative Kommentare
+        ("Leider entspricht die Qualität nicht dem Preis.", "Anna W.", "Amazon", "Produkt"),
+        ("Das Gerät funktioniert nicht richtig.", "Michael B.", "Elektronikmarkt", "Produkt"),
         
-        # Service-related comments
-        ("Der Kundenservice war sehr hilfsbereit und freundlich.", "Sabine Fischer", "Hotline", "Service"),
-        ("Lange Wartezeiten am Telefon und unfreundliches Personal.", "Klaus Wagner", "Support", "Service"),
-        ("Die Beratung war kompetent und hat mir sehr geholfen.", "Julia König", "Fachgeschäft", "Service"),
+        # Service-bezogene Kommentare
+        ("Der Kundenservice war sehr hilfsbereit.", "Sabine F.", "Hotline", "Service"),
+        ("Lange Wartezeiten am Telefon.", "Klaus W.", "Support", "Service"),
         
-        # Restaurant reviews
-        ("Das Essen war köstlich und das Ambiente sehr angenehm.", "Stefan Schneider", "Restaurant", "Gastronomie"),
-        ("Zu lange Wartezeit und das Essen war nur lauwarm.", "Petra Hoffmann", "Restaurant", "Gastronomie"),
-        ("Freundliche Bedienung, aber das Preis-Leistungs-Verhältnis stimmt nicht.", "Martin Wolf", "Café", "Gastronomie"),
-        
-        # Website feedback
-        ("Die Webseite ist übersichtlich und benutzerfreundlich gestaltet.", "Daniel Meyer", "Website", "Online"),
-        ("Zu viele Pop-ups und die Ladezeit ist viel zu lang.", "Laura Schäfer", "Website", "Online"),
-        ("Die neue App funktioniert einwandfrei und hat ein tolles Design.", "Sophia Richter", "Mobile App", "Online")
+        # Neutrale Kommentare
+        ("Das Produkt entspricht den Angaben.", "Christian W.", "Bewertung", "Elektronik"),
+        ("Die Lieferung erfolgte wie angekündigt.", "Monika S.", "Versand", "Logistik")
     ]
     
-    db.insert_many_comments(sample_comments)
-    print(f"Inserted {len(sample_comments)} sample comments into the database.")
+    try:
+        count = db.insert_many_comments(sample_comments)
+        logger.info(f"Datenbank erfolgreich mit {count} Beispielkommentaren initialisiert")
+    except Exception as e:
+        logger.error(f"Fehler bei der Initialisierung der Datenbank: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     # Run this script directly to initialize the database with sample data

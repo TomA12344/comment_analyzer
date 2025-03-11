@@ -1,0 +1,92 @@
+2025-03-12 00:16:45,112 - __main__ - INFO - Kommentar-Analyzer gestartet mit Aktion: init
+2025-03-12 00:16:45,114 - __main__ - INFO - Initialisiere Datenbank mit Beispieldaten...
+2025-03-12 00:16:45,115 - src.data_acquisition.database - INFO - Initialisiere Datenbank mit Beispieldaten
+2025-03-12 00:16:45,116 - src.data_acquisition.database - INFO - Datenbankverbindung initialisiert: C:\Users\Tomhe\comment_analyzer\data\comments.db
+2025-03-12 00:16:45,129 - src.data_acquisition.database - INFO - Tabellen erfolgreich erstellt oder waren bereits vorhanden
+2025-03-12 00:16:45,137 - src.data_acquisition.database - INFO - 8 Kommentare erfolgreich eingefügt
+2025-03-12 00:16:45,140 - src.data_acquisition.database - INFO - Datenbank erfolgreich mit 8 Beispielkommentaren initialisiert
+2025-03-12 00:16:45,141 - __main__ - INFO - Datenbankinitialisierung abgeschlossen.
+2025-03-12 00:16:45,141 - __main__ - INFO - Programm beendet.
+2025-03-12 00:17:00,095 - __main__ - INFO - Kommentar-Analyzer gestartet mit Aktion: analyze
+2025-03-12 00:17:00,095 - __main__ - INFO - Lade und analysiere Kommentare...
+2025-03-12 00:17:00,096 - src.data_acquisition.database - INFO - Datenbankverbindung initialisiert: C:\Users\Tomhe\comment_analyzer\data\comments.db
+2025-03-12 00:17:00,109 - src.data_acquisition.database - INFO - 124 Kommentare aus der Datenbank abgerufen
+2025-03-12 00:17:00,110 - __main__ - INFO - 124 Kommentare aus Datenbank geladen.
+2025-03-12 00:17:00,130 - src.preprocessing.text_cleaner - INFO - TextCleaner initialisiert mit Sprache: german
+2025-03-12 00:17:00,131 - src.preprocessing.text_cleaner - INFO - Vorverarbeitung von 124 Texten in DataFrame
+2025-03-12 00:17:00,142 - src.preprocessing.text_cleaner - INFO - Textvorverarbeitung abgeschlossen
+2025-03-12 00:17:00,143 - __main__ - INFO - Textvorverarbeitung abgeschlossen.
+2025-03-12 00:17:00,144 - src.analysis.sentiment_analyzer - INFO - SentimentAnalyzer initialisiert mit Modell: ssary/XLM-RoBERTa-German-sentiment
+2025-03-12 00:17:00,146 - src.analysis.sentiment_analyzer - INFO - Führe Sentiment-Analyse für 124 Einträge durch
+2025-03-12 00:17:00,147 - src.analysis.sentiment_analyzer - INFO - Lade Sentiment-Modell: ssary/XLM-RoBERTa-German-sentiment
+2025-03-12 00:17:21,236 - src.analysis.sentiment_analyzer - INFO - Modell erfolgreich geladen
+2025-03-12 00:17:29,887 - src.analysis.sentiment_analyzer - INFO - Sentiment-Verteilung: {'negative': 69, 'positive': 55}
+2025-03-12 00:17:29,887 - __main__ - INFO - Sentiment-Analyse abgeschlossen.
+2025-03-12 00:17:29,889 - __main__ - INFO - Führe Themenanalyse durch...
+2025-03-12 00:17:29,889 - src.analysis.topic_analyzer - INFO - TopicAnalyzer initialisiert mit 5 Themen, 1000 Features
+2025-03-12 00:17:29,889 - src.analysis.topic_analyzer - INFO - Verwende Token-Spalte 'tokens' für die Themenanalyse
+2025-03-12 00:17:29,890 - src.analysis.topic_analyzer - INFO - Starte Themenanalyse für 124 Texte
+2025-03-12 00:17:29,890 - src.analysis.topic_analyzer - INFO - Erstelle Dokument-Term-Matrix
+2025-03-12 00:17:29,896 - src.analysis.topic_analyzer - INFO - Trainiere LDA-Modell mit 5 Themen...
+2025-03-12 00:17:30,057 - src.analysis.topic_analyzer - INFO - Berechne Dokument-Themen-Verteilung
+2025-03-12 00:17:30,063 - src.analysis.topic_analyzer - INFO - LDA-Modell erfolgreich trainiert
+2025-03-12 00:17:30,070 - src.analysis.topic_analyzer - INFO - Verteilung der Hauptthemen: {4: 28, 1: 28, 2: 25, 0: 22, 3: 21}
+2025-03-12 00:17:30,070 - __main__ - INFO - Themenanalyse abgeschlossen.
+2025-03-12 00:17:30,078 - __main__ - INFO - Analyse abgeschlossen und Ergebnisse angezeigt.
+2025-03-12 00:17:30,313 - __main__ - INFO - Programm beendet.
+2025-03-12 00:17:43,895 - __main__ - INFO - Kommentar-Analyzer gestartet mit Aktion: analyze
+2025-03-12 00:17:43,896 - __main__ - INFO - Lade und analysiere Kommentare...
+2025-03-12 00:17:43,897 - src.data_acquisition.database - INFO - Datenbankverbindung initialisiert: C:\Users\Tomhe\comment_analyzer\data\comments.db
+2025-03-12 00:17:43,901 - src.data_acquisition.database - INFO - 124 Kommentare aus der Datenbank abgerufen
+2025-03-12 00:17:43,902 - __main__ - INFO - 124 Kommentare aus Datenbank geladen.
+2025-03-12 00:17:43,908 - src.preprocessing.text_cleaner - INFO - TextCleaner initialisiert mit Sprache: german
+2025-03-12 00:17:43,909 - src.preprocessing.text_cleaner - INFO - Vorverarbeitung von 124 Texten in DataFrame
+2025-03-12 00:17:43,924 - src.preprocessing.text_cleaner - INFO - Textvorverarbeitung abgeschlossen
+2025-03-12 00:17:43,925 - __main__ - INFO - Textvorverarbeitung abgeschlossen.
+2025-03-12 00:17:43,926 - src.analysis.sentiment_analyzer - INFO - SentimentAnalyzer initialisiert mit Modell: ssary/XLM-RoBERTa-German-sentiment
+2025-03-12 00:17:43,927 - src.analysis.sentiment_analyzer - INFO - Führe Sentiment-Analyse für 124 Einträge durch
+2025-03-12 00:17:43,929 - src.analysis.sentiment_analyzer - INFO - Lade Sentiment-Modell: ssary/XLM-RoBERTa-German-sentiment
+2025-03-12 00:17:51,791 - src.analysis.sentiment_analyzer - INFO - Modell erfolgreich geladen
+2025-03-12 00:18:01,373 - src.analysis.sentiment_analyzer - INFO - Sentiment-Verteilung: {'negative': 69, 'positive': 55}
+2025-03-12 00:18:01,374 - __main__ - INFO - Sentiment-Analyse abgeschlossen.
+2025-03-12 00:18:01,375 - __main__ - INFO - Führe Themenanalyse durch...
+2025-03-12 00:18:01,375 - src.analysis.topic_analyzer - INFO - TopicAnalyzer initialisiert mit 5 Themen, 1000 Features
+2025-03-12 00:18:01,376 - src.analysis.topic_analyzer - INFO - Verwende Token-Spalte 'tokens' für die Themenanalyse
+2025-03-12 00:18:01,377 - src.analysis.topic_analyzer - INFO - Starte Themenanalyse für 124 Texte
+2025-03-12 00:18:01,377 - src.analysis.topic_analyzer - INFO - Erstelle Dokument-Term-Matrix
+2025-03-12 00:18:01,380 - src.analysis.topic_analyzer - INFO - Trainiere LDA-Modell mit 5 Themen...
+2025-03-12 00:18:01,570 - src.analysis.topic_analyzer - INFO - Berechne Dokument-Themen-Verteilung
+2025-03-12 00:18:01,578 - src.analysis.topic_analyzer - INFO - LDA-Modell erfolgreich trainiert
+2025-03-12 00:18:01,580 - src.analysis.topic_analyzer - INFO - Verteilung der Hauptthemen: {4: 28, 1: 28, 2: 25, 0: 22, 3: 21}
+2025-03-12 00:18:01,580 - __main__ - INFO - Themenanalyse abgeschlossen.
+2025-03-12 00:18:01,586 - __main__ - INFO - Analyse abgeschlossen und Ergebnisse angezeigt.
+2025-03-12 00:18:01,889 - __main__ - INFO - Programm beendet.
+2025-03-12 00:18:23,108 - __main__ - INFO - Kommentar-Analyzer gestartet mit Aktion: dashboard
+2025-03-12 00:18:24,693 - __main__ - INFO - Starte Dashboard...
+2025-03-12 00:18:44,796 - __main__ - INFO - Dashboard wird gestartet
+2025-03-12 00:18:44,797 - __main__ - INFO - Initialisiere Dashboard-Komponenten
+2025-03-12 00:18:44,798 - src.data_acquisition.database - INFO - Datenbankverbindung initialisiert: C:\Users\Tomhe\comment_analyzer\data\comments.db
+2025-03-12 00:18:44,802 - src.preprocessing.text_cleaner - INFO - TextCleaner initialisiert mit Sprache: german
+2025-03-12 00:18:44,803 - src.analysis.sentiment_analyzer - INFO - SentimentAnalyzer initialisiert mit Modell: ssary/XLM-RoBERTa-German-sentiment
+2025-03-12 00:18:44,803 - src.analysis.topic_analyzer - INFO - TopicAnalyzer initialisiert mit 5 Themen, 1000 Features
+2025-03-12 00:18:47,035 - __main__ - INFO - Lade Daten aus der Datenbank
+2025-03-12 00:18:47,041 - src.data_acquisition.database - INFO - 124 Kommentare aus der Datenbank abgerufen
+2025-03-12 00:18:47,041 - __main__ - INFO - Führe Textvorverarbeitung durch
+2025-03-12 00:18:47,042 - src.preprocessing.text_cleaner - INFO - Vorverarbeitung von 124 Texten in DataFrame
+2025-03-12 00:18:47,057 - src.preprocessing.text_cleaner - INFO - Textvorverarbeitung abgeschlossen
+2025-03-12 00:18:47,058 - __main__ - INFO - Führe Sentiment-Analyse durch
+2025-03-12 00:18:47,060 - src.analysis.sentiment_analyzer - INFO - Führe Sentiment-Analyse für 124 Einträge durch
+2025-03-12 00:18:47,061 - src.analysis.sentiment_analyzer - INFO - Lade Sentiment-Modell: ssary/XLM-RoBERTa-German-sentiment
+2025-03-12 00:18:55,961 - src.analysis.sentiment_analyzer - INFO - Modell erfolgreich geladen
+2025-03-12 00:19:04,164 - src.analysis.sentiment_analyzer - INFO - Sentiment-Verteilung: {'negative': 69, 'positive': 55}
+2025-03-12 00:19:04,164 - __main__ - INFO - Führe Themenanalyse durch
+2025-03-12 00:19:04,165 - src.analysis.topic_analyzer - INFO - Verwende Token-Spalte 'tokens' für die Themenanalyse
+2025-03-12 00:19:04,166 - src.analysis.topic_analyzer - INFO - Starte Themenanalyse für 124 Texte
+2025-03-12 00:19:04,166 - src.analysis.topic_analyzer - INFO - Erstelle Dokument-Term-Matrix
+2025-03-12 00:19:04,169 - src.analysis.topic_analyzer - INFO - Trainiere LDA-Modell mit 5 Themen...
+2025-03-12 00:19:04,320 - src.analysis.topic_analyzer - INFO - Berechne Dokument-Themen-Verteilung
+2025-03-12 00:19:04,329 - src.analysis.topic_analyzer - INFO - LDA-Modell erfolgreich trainiert
+2025-03-12 00:19:04,331 - src.analysis.topic_analyzer - INFO - Verteilung der Hauptthemen: {4: 28, 1: 28, 2: 25, 0: 22, 3: 21}
+2025-03-12 00:19:04,331 - __main__ - INFO - Daten geladen und verarbeitet: 124 Kommentare
+2025-03-12 00:19:04,332 - __main__ - INFO - Daten erfolgreich geladen
+2025-03-12 00:19:05,687 - __main__ - INFO - Dashboard-Ausführung beendet

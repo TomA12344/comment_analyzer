@@ -14,6 +14,11 @@ from src.data_acquisition.database import CommentDatabase
 from src.preprocessing.text_cleaner import TextCleaner
 from src.analysis.sentiment_analyzer import SentimentAnalyzer
 from src.analysis.topic_analyzer import TopicAnalyzer
+from src.config import DEFAULT_LANGUAGE, DEFAULT_NUM_TOPICS
+from src.logger import setup_logger
+
+# Logger für dieses Modul
+logger = setup_logger(__name__)
 
 
 class Dashboard:
@@ -23,27 +28,33 @@ class Dashboard:
     
     def __init__(self):
         """Initialize the dashboard components."""
+        logger.info("Initialisiere Dashboard-Komponenten")
         self.db = CommentDatabase()
-        self.text_cleaner = TextCleaner(language='german')
+        self.text_cleaner = TextCleaner(language=DEFAULT_LANGUAGE)
         self.sentiment_analyzer = SentimentAnalyzer()
-        self.topic_analyzer = TopicAnalyzer(n_topics=4)
+        self.topic_analyzer = TopicAnalyzer(n_topics=DEFAULT_NUM_TOPICS)
         self.df = None
     
     def load_data(self):
         """Load data from the database and preprocess it."""
         # Get comments from database
+        logger.info("Lade Daten aus der Datenbank")
         df = self.db.get_all_comments()
         
         # Preprocess text
+        logger.info("Führe Textvorverarbeitung durch")
         df = self.text_cleaner.preprocess_dataframe(df)
         
         # Perform sentiment analysis
+        logger.info("Führe Sentiment-Analyse durch")
         df = self.sentiment_analyzer.analyze_dataframe(df)
         
         # Perform topic analysis
+        logger.info("Führe Themenanalyse durch")
         df = self.topic_analyzer.analyze_dataframe(df, tokens_column='tokens')
         
         self.df = df
+        logger.info(f"Daten geladen und verarbeitet: {len(df)} Kommentare")
         return df
     
     def run(self):
@@ -56,18 +67,28 @@ class Dashboard:
         # Load data if not loaded
         if self.df is None:
             with st.spinner("Daten werden geladen und analysiert..."):
-                self.load_data()
+                try:
+                    self.load_data()
+                    logger.info("Daten erfolgreich geladen")
+                except Exception as e:
+                    logger.error(f"Fehler beim Laden der Daten: {str(e)}")
+                    st.error(f"Fehler beim Laden der Daten: {str(e)}")
+                    return
         
         # Display data overview section
+        logger.debug("Zeige Datenübersicht an")
         self.display_data_overview()
         
         # Display sentiment analysis section
+        logger.debug("Zeige Sentiment-Analyse an")
         self.display_sentiment_analysis()
         
         # Display topic analysis section
+        logger.debug("Zeige Themenanalyse an")
         self.display_topic_analysis()
         
         # Display detailed data section
+        logger.debug("Zeige Daten-Explorer an")
         self.display_data_explorer()
     
     def display_data_overview(self):
@@ -115,15 +136,41 @@ class Dashboard:
         with col1:
             # Sentiment by category
             if 'category' in self.df.columns:
-                sentiment_by_category = pd.crosstab(
-                    self.df['category'], 
-                    self.df['sentiment'],
-                    normalize='index'
-                ) * 100
+                try:
+                    sentiment_by_category = pd.crosstab(
+                        self.df['category'], 
+                        self.df['sentiment'],
+                        normalize='index'
+                    ) * 100
+                    
+                    fig = px.bar(
+                        sentiment_by_category,
+                        title="Sentiment nach Kategorie (%)",
+                        color_discrete_map={
+                            'positive': 'green',
+                            'neutral': 'gray',
+                            'negative': 'red'
+                        }
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    logger.error(f"Fehler bei der Erstellung des Sentiment-Kategorie-Diagramms: {str(e)}")
+                    st.error("Diagramm konnte nicht erstellt werden")
+        
+        with col2:
+            # Average sentiment scores
+            try:
+                score_cols = [col for col in self.df.columns if col.startswith('score_')]
+                avg_scores = self.df[score_cols].mean().reset_index()
+                avg_scores.columns = ['Sentiment', 'Average Score']
+                avg_scores['Sentiment'] = avg_scores['Sentiment'].str.replace('score_', '')
                 
                 fig = px.bar(
-                    sentiment_by_category,
-                    title="Sentiment nach Kategorie (%)",
+                    avg_scores,
+                    x='Sentiment',
+                    y='Average Score',
+                    title="Durchschnittliche Sentiment-Scores",
+                    color='Sentiment',
                     color_discrete_map={
                         'positive': 'green',
                         'neutral': 'gray',
@@ -131,27 +178,9 @@ class Dashboard:
                     }
                 )
                 st.plotly_chart(fig, use_container_width=True)
-        
-        with col2:
-            # Average sentiment scores
-            score_cols = [col for col in self.df.columns if col.startswith('score_')]
-            avg_scores = self.df[score_cols].mean().reset_index()
-            avg_scores.columns = ['Sentiment', 'Average Score']
-            avg_scores['Sentiment'] = avg_scores['Sentiment'].str.replace('score_', '')
-            
-            fig = px.bar(
-                avg_scores,
-                x='Sentiment',
-                y='Average Score',
-                title="Durchschnittliche Sentiment-Scores",
-                color='Sentiment',
-                color_discrete_map={
-                    'positive': 'green',
-                    'neutral': 'gray',
-                    'negative': 'red'
-                }
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            except Exception as e:
+                logger.error(f"Fehler bei der Erstellung des durchschnittlichen Sentiment-Score-Diagramms: {str(e)}")
+                st.error("Diagramm konnte nicht erstellt werden")
         
         # Display most positive and negative comments
         st.subheader("Top Positive & Negative Kommentare")
@@ -160,70 +189,99 @@ class Dashboard:
         
         with col1:
             st.write("📈 Positivste Kommentare:")
-            top_positive = self.df.sort_values('score_positive', ascending=False).head(3)
-            for i, row in enumerate(top_positive.itertuples(), 1):
-                st.info(f"{i}. {row.text} (Score: {row.score_positive:.2f})")
+            # Sortierung und Deduplizierung, um verschiedene Kommentare anzuzeigen
+            try:
+                top_positive = self.df.sort_values('score_positive', ascending=False)
+                # Entfernt Duplikate im Text, behält die erste Instanz jedes Textes
+                top_positive_unique = top_positive.drop_duplicates(subset=['text']).head(3)
+                
+                for i, row in enumerate(top_positive_unique.itertuples(), 1):
+                    st.info(f"{i}. {row.text} (Score: {row.score_positive:.2f})")
+            except Exception as e:
+                logger.error(f"Fehler bei der Anzeige der Top-positiven Kommentare: {str(e)}")
+                st.error("Kommentare konnten nicht angezeigt werden")
         
         with col2:
             st.write("📉 Negativste Kommentare:")
-            top_negative = self.df.sort_values('score_negative', ascending=False).head(3)
-            for i, row in enumerate(top_negative.itertuples(), 1):
-                st.error(f"{i}. {row.text} (Score: {row.score_negative:.2f})")
+            # Sortierung und Deduplizierung, um verschiedene Kommentare anzuzeigen
+            try:
+                top_negative = self.df.sort_values('score_negative', ascending=False)
+                # Entfernt Duplikate im Text, behält die erste Instanz jedes Textes
+                top_negative_unique = top_negative.drop_duplicates(subset=['text']).head(3)
+                
+                for i, row in enumerate(top_negative_unique.itertuples(), 1):
+                    st.error(f"{i}. {row.text} (Score: {row.score_negative:.2f})")
+            except Exception as e:
+                logger.error(f"Fehler bei der Anzeige der Top-negativen Kommentare: {str(e)}")
+                st.error("Kommentare konnten nicht angezeigt werden")
     
     def display_topic_analysis(self):
         """Display topic analysis section."""
         st.header("Themen-Analyse")
         
         # Display topic distributions
-        topic_dist = pd.DataFrame({
-            'Anzahl': self.df['main_topic'].value_counts()
-        }).reset_index()
-        topic_dist.columns = ['Thema', 'Anzahl']
-        
-        # Get top words for each topic to create labels
-        topic_words = self.topic_analyzer.get_top_words(n_top_words=5)
-        topic_labels = [f"Thema {i}: {', '.join(words[:3])}" for i, words in enumerate(topic_words)]
-        
-        # Map topic numbers to labels
-        topic_mapping = {i: label for i, label in enumerate(topic_labels)}
-        topic_dist['Thema'] = topic_dist['Thema'].map(lambda x: topic_mapping.get(x, f"Thema {x}"))
-        
-        st.subheader("Themenverteilung")
-        fig = px.bar(
-            topic_dist, 
-            x='Thema', 
-            y='Anzahl',
-            title="Anzahl der Kommentare pro Thema"
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        try:
+            topic_dist = pd.DataFrame({
+                'Anzahl': self.df['main_topic'].value_counts()
+            }).reset_index()
+            topic_dist.columns = ['Thema', 'Anzahl']
+            
+            # Get top words for each topic to create labels
+            topic_words = self.topic_analyzer.get_top_words(n_top_words=5)
+            topic_labels = [f"Thema {i}: {', '.join(words[:3])}" for i, words in enumerate(topic_words)]
+            
+            # Map topic numbers to labels
+            topic_mapping = {i: label for i, label in enumerate(topic_labels)}
+            topic_dist['Thema'] = topic_dist['Thema'].map(lambda x: topic_mapping.get(x, f"Thema {x}"))
+            
+            st.subheader("Themenverteilung")
+            fig = px.bar(
+                topic_dist, 
+                x='Thema', 
+                y='Anzahl',
+                title="Anzahl der Kommentare pro Thema"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            logger.error(f"Fehler bei der Anzeige der Themenverteilung: {str(e)}")
+            st.error("Themenverteilung konnte nicht angezeigt werden")
         
         # Word clouds
         st.subheader("Themen-Wordclouds")
         
         # Generate word clouds for each topic
         if st.button("Wordclouds anzeigen"):
-            fig = self.topic_analyzer.plot_topic_wordclouds()
-            st.pyplot(fig)
+            try:
+                logger.info("Erstelle Wordclouds für alle Themen")
+                fig = self.topic_analyzer.plot_topic_wordclouds()
+                st.pyplot(fig)
+            except Exception as e:
+                logger.error(f"Fehler bei der Erstellung der Wordclouds: {str(e)}")
+                st.error("Wordclouds konnten nicht erstellt werden")
             
         # Topic-Sentiment relationship
         st.subheader("Themen-Sentiment Beziehung")
         
         # Create a pivot table of topic vs sentiment
-        topic_sentiment = pd.crosstab(
-            self.df['main_topic'].map(lambda x: topic_mapping.get(x, f"Thema {x}")), 
-            self.df['sentiment'],
-        )
-        
-        fig = px.bar(
-            topic_sentiment,
-            title="Sentiment pro Thema",
-            color_discrete_map={
-                'positive': 'green',
-                'neutral': 'gray',
-                'negative': 'red'
-            }
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        try:
+            topic_sentiment = pd.crosstab(
+                self.df['main_topic'].map(lambda x: topic_mapping.get(x, f"Thema {x}")), 
+                self.df['sentiment'],
+            )
+            
+            fig = px.bar(
+                topic_sentiment,
+                title="Sentiment pro Thema",
+                color_discrete_map={
+                    'positive': 'green',
+                    'neutral': 'gray',
+                    'negative': 'red'
+                }
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            logger.error(f"Fehler bei der Anzeige der Themen-Sentiment-Beziehung: {str(e)}")
+            st.error("Themen-Sentiment-Beziehung konnte nicht angezeigt werden")
     
     def display_data_explorer(self):
         """Display data explorer section."""
@@ -253,25 +311,42 @@ class Dashboard:
             filtered_df = filtered_df[filtered_df['category'].isin(category_filter)]
         
         # Show filtered data
-        st.dataframe(
-            filtered_df[['text', 'sentiment', 'category', 'author', 'source', 'main_topic']],
-            height=300
-        )
+        try:
+            display_columns = ['text', 'sentiment', 'category', 'author', 'source', 'main_topic']
+            valid_columns = [col for col in display_columns if col in filtered_df.columns]
+            
+            st.dataframe(
+                filtered_df[valid_columns],
+                height=300
+            )
+            logger.debug(f"Zeige gefilterte Daten an: {len(filtered_df)} Einträge")
+        except Exception as e:
+            logger.error(f"Fehler bei der Anzeige der gefilterten Daten: {str(e)}")
+            st.error("Daten konnten nicht angezeigt werden")
         
         # Search functionality
         search_term = st.text_input("Kommentare durchsuchen:")
         if search_term:
-            search_results = self.df[self.df['text'].str.contains(search_term, case=False)]
-            st.write(f"{len(search_results)} Ergebnisse gefunden:")
-            st.dataframe(
-                search_results[['text', 'sentiment', 'category', 'author', 'source', 'main_topic']],
-                height=300
-            )
+            try:
+                search_results = self.df[self.df['text'].str.contains(search_term, case=False)]
+                st.write(f"{len(search_results)} Ergebnisse gefunden:")
+                st.dataframe(
+                    search_results[valid_columns],
+                    height=300
+                )
+                logger.info(f"Suchergebnisse für '{search_term}': {len(search_results)} Treffer")
+            except Exception as e:
+                logger.error(f"Fehler bei der Suche nach '{search_term}': {str(e)}")
+                st.error("Suchergebnisse konnten nicht angezeigt werden")
+
 
 def main():
     """Main function to run the dashboard."""
+    logger.info("Dashboard wird gestartet")
     dashboard = Dashboard()
     dashboard.run()
+    logger.info("Dashboard-Ausführung beendet")
+
 
 if __name__ == "__main__":
     main()
